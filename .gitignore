@@ -1,2 +1,6 @@
 
 .codegpt
+.env
+.github
+cache
+out
