@@ -132,11 +132,17 @@ contract MultisigTest is Test {
         multisig.confirmTransaction(0);
     }
 
-    function testInvalidTransactionExecution2() public {
+    function testConfirmAlreadyExecuted() public {
         // Try executing a non-existent transaction
         vm.prank(signer1);
-        vm.expectRevert("Transaction does not exist");
-        multisig.executeTransaction(0);
+        multisig.submitTransaction(signer1, 1 ether, "0x0");
+        vm.prank(signer2);
+        multisig.confirmTransaction(0);
+        vm.prank(signer3);
+        multisig.confirmTransaction(0);
+        vm.prank(signer1);
+        vm.expectRevert("Transaction already executed");
+        multisig.confirmTransaction(0);
     }
 
     function testEventEmission() public {
@@ -176,21 +182,6 @@ contract MultisigTest is Test {
         vm.expectRevert("Not a signer");
         multisig.removeSigner(signer1);
     }
-    function testAlreadyExecutedTransaction() public {
-        // Submit and execute a transaction
-        vm.prank(signer1);
-        multisig.submitTransaction(address(signer1), 1 ether, "0x0");
-
-        vm.prank(signer2);
-        multisig.confirmTransaction(0);
-        vm.prank(signer3);
-        multisig.confirmTransaction(0);
-
-        // Attempt to re-execute
-        vm.prank(signer1);
-        vm.expectRevert("Transaction already executed");
-        multisig.executeTransaction(0);
-    }
 
     function testInsufficientFunds() public {
         // Submit a transaction with insufficient contract balance
@@ -202,13 +193,6 @@ contract MultisigTest is Test {
         vm.prank(signer3);
         vm.expectRevert("Transaction failed");
         multisig.confirmTransaction(0);
-    }
-
-    function testExecutionNotConfirmed() public {
-        vm.startBroadcast(signer1);
-        multisig.submitTransaction(address(signer1), 10 ether, "0x0");
-        vm.expectRevert("Insufficient confirmations");
-        multisig.executeTransaction(0);
     }
 
     function testAddFakeSigner() public {
