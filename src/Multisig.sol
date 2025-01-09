@@ -3,10 +3,9 @@ pragma solidity ^0.8.13;
 
 contract Multisig{
 
-    uint256 public requiredConfirmations;
-    mapping(address => bool) public isSigner;
-    uint256 public constant MINIMAL_SIGNERS = 3;
-    uint256 public signersCount;
+/*//////////////////////////////////////////////////////////////
+                           TYPES
+//////////////////////////////////////////////////////////////*/
 
     struct Transaction {
         address to;
@@ -16,8 +15,32 @@ contract Multisig{
         uint256 confirmations;
     }
 
-    Transaction[] public transactions;
+/*//////////////////////////////////////////////////////////////
+                        STATE VARIABLES
+//////////////////////////////////////////////////////////////*/
+
+    uint256 public requiredConfirmations;
+    uint256 public constant MINIMAL_SIGNERS = 3;
+    uint256 public signersCount;
+
+    mapping(address signer => bool isValid) public isSigner;
     mapping(uint256 => mapping(address => bool)) public confirmations;
+
+    Transaction[] public transactions;
+
+/*//////////////////////////////////////////////////////////////
+                           EVENTS
+//////////////////////////////////////////////////////////////*/
+
+    event TransactionSubmitted(uint256 indexed _txId, address indexed _to, uint256 _value, bytes _data);
+    event TransactionConfirmed(uint256 indexed _txId, address indexed _signer);
+    event TransactionExecuted(uint256 indexed _txId);
+    event SignerAdded(address indexed _newSigner);
+    event SignerRemoved(address indexed _removedSigner);
+
+/*//////////////////////////////////////////////////////////////
+                           MODIFIERS
+//////////////////////////////////////////////////////////////*/
 
     modifier onlySigner() {
         require(isSigner[msg.sender], "Not a signer");
@@ -39,11 +62,9 @@ contract Multisig{
         _;
     }
 
-    event TransactionSubmitted(uint256 indexed _txId, address indexed _to, uint256 _value, bytes _data);
-    event TransactionConfirmed(uint256 indexed _txId, address indexed _signer);
-    event TransactionExecuted(uint256 indexed _txId);
-    event SignerAdded(address indexed _newSigner);
-    event SignerRemoved(address indexed _removedSigner);
+/*//////////////////////////////////////////////////////////////
+                           CONSTRUCTOR
+//////////////////////////////////////////////////////////////*/
 
     constructor(address[] memory _signers, uint256 _requiredConfirmations) {
         require(_signers.length >= MINIMAL_SIGNERS, "At least 3 signers required");
@@ -60,6 +81,16 @@ contract Multisig{
 
         requiredConfirmations = _requiredConfirmations;
     }
+
+/*//////////////////////////////////////////////////////////////
+                           FALLBACK
+//////////////////////////////////////////////////////////////*/
+
+    receive() external payable {}
+
+/*//////////////////////////////////////////////////////////////
+                        EXTERNAL FUNCTIONS
+//////////////////////////////////////////////////////////////*/
 
     function submitTransaction(address _to, uint256 _value, bytes calldata _data) external onlySigner {
         transactions.push(Transaction({
@@ -90,16 +121,6 @@ contract Multisig{
         }
     }
 
-    function _executeTransaction(uint256 _txId) private {
-        Transaction storage txn = transactions[_txId];
-
-        txn.executed = true;
-        (bool success, ) = txn.to.call{value: txn.value}(txn.data);
-        require(success, "Transaction failed");
-
-        emit TransactionExecuted(_txId);
-    }
-
     function addSigner(address _newSigner) external onlySigner {
         require(_newSigner != address(0), "Invalid address");
         require(!isSigner[_newSigner], "Already a signer");
@@ -120,5 +141,17 @@ contract Multisig{
         emit SignerRemoved(_signer);
     }
 
-    receive() external payable {}
+/*//////////////////////////////////////////////////////////////
+                        PRIVATE FUNCTION
+//////////////////////////////////////////////////////////////*/
+
+    function _executeTransaction(uint256 _txId) private {
+        Transaction storage txn = transactions[_txId];
+
+        txn.executed = true;
+        (bool success, ) = txn.to.call{value: txn.value}(txn.data);
+        require(success, "Transaction failed");
+
+        emit TransactionExecuted(_txId);
+    }
 }
