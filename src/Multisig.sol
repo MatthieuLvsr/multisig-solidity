@@ -86,14 +86,12 @@ contract Multisig{
         emit TransactionConfirmed(_txId, msg.sender);
 
         if (transactions[_txId].confirmations >= requiredConfirmations) {
-            executeTransaction(_txId);
+            _executeTransaction(_txId);
         }
     }
 
-    function executeTransaction(uint256 _txId) public txExists(_txId) notExecuted(_txId) {
+    function _executeTransaction(uint256 _txId) private {
         Transaction storage txn = transactions[_txId];
-
-        require(txn.confirmations >= requiredConfirmations, "Insufficient confirmations");
 
         txn.executed = true;
         (bool success, ) = txn.to.call{value: txn.value}(txn.data);
